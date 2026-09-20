@@ -17,6 +17,13 @@ public class PlayerController : MonoBehaviour
     //we need to have a variable to control the speed of the player
     [SerializeField]
     private float movementSpeed;
+    [SerializeField]
+    private float jumpForce;
+    //how many jumps the player has performed
+    private int numJumps;
+    //max number of jumps the player can perform until they need to touch the ground again
+    [SerializeField]
+    private int maxNumJumps;
 
     void Start()
     {
@@ -30,6 +37,7 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         movePlayerLateral();
+        jump();
     }
 
     private void movePlayerLateral()
@@ -58,7 +66,14 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-
+    private void jump()
+    {
+        if (Input.GetKeyDown(KeyCode.Space) && numJumps <= maxNumJumps)
+        {
+            player_rb.linearVelocity = new Vector2(player_rb.linearVelocity.x, jumpForce);
+            numJumps++;
+        }
+    }
 
 
     //This is a prebuilt function that will detect collisions
@@ -74,5 +89,19 @@ public class PlayerController : MonoBehaviour
             Debug.Log("Restart level");
             SceneManager.LoadScene("SampleScene");
         }
+        else if (collision.gameObject.CompareTag("Ground"))
+        {
+            numJumps = 1;
+        }
+    }
+
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.gameObject.CompareTag("DoubleJump"))
+        {
+            maxNumJumps = 2;
+            Destroy(collision.gameObject);
+        }
+
     }
 }
