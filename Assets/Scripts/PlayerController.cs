@@ -25,6 +25,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField]
     private int maxNumJumps;
 
+    //where on the pl;ayer the hat should be placed
+    public GameObject doubleJumpHatLocation;
+
     void Start()
     {
         //we need to set the player rigibody variable
@@ -100,8 +103,16 @@ public class PlayerController : MonoBehaviour
         if (collision.gameObject.CompareTag("DoubleJump"))
         {
             maxNumJumps = 2;
-            Destroy(collision.gameObject);
+            GameObject hat = collision.gameObject;
+            equipDoubleJumpHat(hat);
+            //Destroy(collision.gameObject);
         }
 
+    }
+
+    private void equipDoubleJumpHat(GameObject hat)
+    {
+        hat.transform.position = doubleJumpHatLocation.transform.position;
+        hat.gameObject.transform.SetParent(this.gameObject.transform);
     }
 }
