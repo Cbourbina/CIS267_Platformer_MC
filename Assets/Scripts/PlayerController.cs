@@ -28,6 +28,13 @@ public class PlayerController : MonoBehaviour
     //where on the pl;ayer the hat should be placed
     public GameObject doubleJumpHatLocation;
 
+    public GameObject equippedSuctionCups;
+    public GameObject suctionCupsLocation;
+    private bool hasSuctionCups = false;
+    private GameObject equippedItemSpawn;
+    private bool isStuckLeft = false;
+    private bool isStuckRight = false;
+
     void Start()
     {
         //we need to set the player rigibody variable
@@ -41,6 +48,7 @@ public class PlayerController : MonoBehaviour
     {
         movePlayerLateral();
         jump();
+        rotateSuctionCups(suctionCupsLocation);
     }
 
     private void movePlayerLateral()
@@ -50,10 +58,74 @@ public class PlayerController : MonoBehaviour
         // the line below will return:
         //0 - no button pressed
         //1 - right arrow pressed
-        //2 - left arrow pressed.
+        //-1 - left arrow pressed.
         float inputHorizontal = Input.GetAxisRaw("Horizontal");
+        float inputVertical = Input.GetAxisRaw("Vertical");
         flipPlayerSprite(inputHorizontal);
-        player_rb.linearVelocity = new Vector2(inputHorizontal * movementSpeed, player_rb.linearVelocityY);
+        if (!isStuckLeft && !isStuckRight)
+        {
+            player_rb.linearVelocity = new Vector2(inputHorizontal * movementSpeed, player_rb.linearVelocityY);
+        }
+        else if (isStuckRight)
+        {
+            if (inputHorizontal == -1)
+            {
+                player_rb.linearVelocity = new Vector2(player_rb.linearVelocityX, movementSpeed);
+            }
+            else if (inputHorizontal == 1)
+            {
+                player_rb.linearVelocity = new Vector2(inputHorizontal * movementSpeed, player_rb.linearVelocityY);
+            }
+            else if (inputVertical == 1)
+            {
+                player_rb.linearVelocity = new Vector2(player_rb.linearVelocityX, movementSpeed);
+            }
+            else if (inputVertical == -1)
+            {
+                player_rb.linearVelocity = new Vector2(player_rb.linearVelocityX, movementSpeed * -1);
+            }
+            else
+            {
+                player_rb.linearVelocity = new Vector2(inputHorizontal * movementSpeed, 0f);
+            }
+        }
+        else if (isStuckLeft)
+        {
+            if (inputHorizontal == 1)
+            {
+                player_rb.linearVelocity = new Vector2(player_rb.linearVelocityX, movementSpeed);
+            }
+            else if (inputHorizontal == -1)
+            {
+                player_rb.linearVelocity = new Vector2(inputHorizontal * movementSpeed, player_rb.linearVelocityY);
+            }
+            else if (inputVertical == 1)
+            {
+                player_rb.linearVelocity = new Vector2(player_rb.linearVelocityX, movementSpeed);
+            }
+            else if (inputVertical == -1)
+            {
+                player_rb.linearVelocity = new Vector2(player_rb.linearVelocityX, movementSpeed * -1);
+            }
+            else
+            {
+                player_rb.linearVelocity = new Vector2(inputHorizontal * movementSpeed, 0f);
+            }
+        }
+    }
+
+    private void rotateSuctionCups(GameObject suctionCups)
+    {
+        float inputHorizontal = Input.GetAxisRaw("Horizontal");
+        float inputVertical = Input.GetAxisRaw("Vertical");
+        if (inputHorizontal != 0)
+        {
+            suctionCups.transform.Rotate(0f, 0f, inputHorizontal * movementSpeed, Space.Self);
+        }
+        else if (inputVertical != 0)
+        {
+            suctionCups.transform.Rotate(0f, 0f, inputVertical * movementSpeed, Space.Self);
+        }
     }
 
     private void flipPlayerSprite(float input)
@@ -73,8 +145,23 @@ public class PlayerController : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Space) && numJumps <= maxNumJumps)
         {
-            player_rb.linearVelocity = new Vector2(player_rb.linearVelocity.x, jumpForce);
-            numJumps++;
+            if (isStuckLeft)
+            {
+                isStuckLeft = false;
+                player_rb.gravityScale = 1f;
+                player_rb.linearVelocity = new Vector2(movementSpeed * -1, jumpForce);
+            }
+            else if (isStuckRight)
+            {
+                isStuckRight = false;
+                player_rb.gravityScale = 1f;
+                player_rb.linearVelocity = new Vector2(movementSpeed * -1, jumpForce);
+            }
+            else
+            {
+                player_rb.linearVelocity = new Vector2(player_rb.linearVelocity.x, jumpForce);
+                numJumps++;
+            }
         }
     }
 
@@ -94,9 +181,38 @@ public class PlayerController : MonoBehaviour
         }
         else if (collision.gameObject.CompareTag("Ground"))
         {
+            //This gets the direction for a perpindicular line from the point of collision
+            Vector2 hitNormal = collision.GetContact(0).normal;
             numJumps = 1;
+            if (hasSuctionCups)
+            {
+                //This is comparing the direction of the line we got earlier to cardinal directions to determine the side of the collision
+                if (Vector2.Dot(hitNormal, Vector2.left) > 0.5f)
+                {
+                    isStuckLeft = true;
+                    player_rb.linearVelocity = new Vector2(player_rb.linearVelocity.x, 0f);
+                    player_rb.gravityScale = 0f;
+                }
+                else if (Vector2.Dot(hitNormal, Vector2.right) > 0.5f)
+                {
+                    isStuckRight = true;
+                    player_rb.linearVelocity = new Vector2(player_rb.linearVelocity.x, 0f);
+                    player_rb.gravityScale = 0f;
+                }
+            }
         }
     }
+
+    private void OnCollisionExit2D(Collision2D collision)
+    {
+        if (isStuckLeft || isStuckRight)
+        {
+            isStuckLeft = false;
+            isStuckRight= false;
+            player_rb.gravityScale = 1f;
+        }
+    }
+
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
@@ -107,6 +223,14 @@ public class PlayerController : MonoBehaviour
             equipDoubleJumpHat(hat);
             //Destroy(collision.gameObject);
         }
+        if (collision.gameObject.CompareTag("SuctionCup"))
+        {
+            hasSuctionCups = true;
+            equippedItemSpawn = Instantiate(equippedSuctionCups);
+            GameObject suctionCupsCollectable = collision.gameObject;
+            equipSuctionCups(equippedItemSpawn);
+            Destroy(collision.gameObject);
+        }
 
     }
 
@@ -114,5 +238,12 @@ public class PlayerController : MonoBehaviour
     {
         hat.transform.position = doubleJumpHatLocation.transform.position;
         hat.gameObject.transform.SetParent(this.gameObject.transform);
+    }
+
+    private void equipSuctionCups(GameObject suctionCups)
+    {
+        suctionCups.transform.position = suctionCupsLocation.transform.position;
+        suctionCups.gameObject.transform.SetParent(this.gameObject.transform);
+        suctionCupsLocation = suctionCups;
     }
 }
